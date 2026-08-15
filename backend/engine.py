@@ -18,6 +18,9 @@ class TimelineEngine:
         self.regressor = None
         self.classifier = None
         self.artifacts = None
+        self.crop_model = None
+        self.crop_scaler = None
+        self.crop_encoder = None
         self.load_models()
 
     def load_models(self):
@@ -32,6 +35,19 @@ class TimelineEngine:
             print(f"Timeline models loaded successfully from {self.models_dir}")
         else:
             print(f"Warning: Model files not found in {self.models_dir}")
+            
+        crop_part_dir = os.path.join(os.path.dirname(self.models_dir), "..", "crop-part")
+        crop_model_path = os.path.join(crop_part_dir, "crop_recommendation_model.pkl")
+        crop_scaler_path = os.path.join(crop_part_dir, "crop_feature_scaler.pkl")
+        crop_encoder_path = os.path.join(crop_part_dir, "crop_label_encoder.pkl")
+        
+        if os.path.exists(crop_model_path):
+            self.crop_model = joblib.load(crop_model_path)
+            self.crop_scaler = joblib.load(crop_scaler_path) if os.path.exists(crop_scaler_path) else None
+            self.crop_encoder = joblib.load(crop_encoder_path) if os.path.exists(crop_encoder_path) else None
+            print("Crop recommendation models loaded successfully.")
+        else:
+            print("Warning: Crop recommendation model not found.")
 
     def predict_shift(
         self,
@@ -175,4 +191,84 @@ class TimelineEngine:
             "net_shift_days": round(new_total_days - total_orig_days, 1),
             "current_stage_index": current_stage_idx,
             "adapted_stages": adapted_stages
+        }
+
+    def recommend_crop(self, features: Dict[str, float]) -> Dict[str, Any]:
+        """
+        Uses the crop recommendation model to predict the best crop and generates SHAP values.
+        """
+        if not self.crop_model:
+            return {"error": "Crop model not loaded"}
+
+        feature_cols = ['N', 'P', 'K', 'temperature', 'humidity', 'ph', 'rainfall']
+        input_data = [features.get(col, 0.0) for col in feature_cols]
+        input_df = pd.DataFrame([input_data], columns=feature_cols)
+
+        # Scale features if scaler exists
+        scaled_input = input_df
+        if self.crop_scaler:
+            scaled_input = pd.DataFrame(self.crop_scaler.transform(input_df), columns=feature_cols)
+
+        # Predict
+        pred_encoded = self.crop_model.predict(scaled_input)[0]
+        
+        # Probabilities
+        probs = self.crop_model.predict_proba(scaled_input)[0]
+        top_indices = np.argsort(probs)[::-1][:3]
+        
+        if self.crop_encoder:
+            pred_crop = self.crop_encoder.inverse_transform([pred_encoded])[0]
+            top_crops = [{"crop": self.crop_encoder.inverse_transform([i])[0], "prob": round(float(probs[i]), 4)} for i in top_indices]
+        else:
+            pred_crop = str(pred_encoded)
+            top_crops = [{"crop": str(i), "prob": round(float(probs[i]), 4)} for i in top_indices]
+
+        # Compute SHAP values for explainability
+        try:
+            import shap
+            explainer = shap.TreeExplainer(self.crop_model)
+            shap_values = explainer.shap_values(scaled_input)
+            
+            # For random forest classifier, shap_values is a list of arrays (one per class)
+            # We want the explanation for the predicted class
+            pred_class_idx = list(self.crop_model.classes_).index(pred_encoded)
+            
+            if isinstance(shap_values, list):
+                class_shap_values = shap_values[pred_class_idx][0]
+            else:
+                # If output is 3D array (num_samples, num_features, num_classes)
+                if len(shap_values.shape) == 3:
+                    class_shap_values = shap_values[0, :, pred_class_idx]
+                else:
+                    class_shap_values = shap_values[0]
+                    
+            # Map SHAP values to feature names
+            shap_dict = {col: round(float(val), 4) for col, val in zip(feature_cols, class_shap_values)}
+            
+            # Sort features by absolute impact
+            sorted_shap = sorted([{"feature": k, "impact": v} for k, v in shap_dict.items()], key=lambda x: abs(x["impact"]), reverse=True)
+            
+            # Generate a plain-english explanation
+            top_positive = [s for s in sorted_shap if s["impact"] > 0]
+            top_negative = [s for s in sorted_shap if s["impact"] < 0]
+            
+            explanation = f"We recommended {pred_crop} primarily because your "
+            if top_positive:
+                explanation += f"{top_positive[0]['feature']} level strongly supports it."
+                if len(top_positive) > 1:
+                    explanation += f" Your {top_positive[1]['feature']} is also very suitable."
+            
+            if top_negative:
+                explanation += f" However, note that your {top_negative[0]['feature']} is less ideal and works slightly against this crop."
+                
+        except Exception as e:
+            print("SHAP error:", e)
+            sorted_shap = []
+            explanation = "Model explanation unavailable."
+
+        return {
+            "recommended_crop": pred_crop,
+            "top_candidates": top_crops,
+            "shap_values": sorted_shap,
+            "explanation": explanation
         }

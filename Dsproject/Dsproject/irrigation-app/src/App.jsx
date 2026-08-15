@@ -28,6 +28,9 @@ import {
   History,
   Trash2,
   Zap,
+  Mic,
+  MicOff,
+  BarChart2,
 } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
@@ -167,6 +170,7 @@ const T = {
     exportBtn: "Download plan (CSV)", printBtn: "Print",
     methodTitle: "Dynamic Closed-Loop Analytics:",
     methodBody: "Farmer feedback is parsed by an LLM into numerical micro-climate shifts, which are fed into a Random Forest Regressor to predict stage deviations, recalculating ETc water demands in real-time.",
+    pastHarvest: "Past harvest result", success: "Success", partial: "Partial", failure: "Failure",
     acresLabel: "Acres", hectaresLabel: "Hectares", sqmLabel: "m\u00B2",
     sowWindowNote: (name, season, sow) => `Best time to plant ${name} (${season}): ${sow}`,
     inSeasonBanner: (day, total, stage) => `Day ${day} of ${total} \u2014 Current: ${stage} stage`,
@@ -199,6 +203,7 @@ const T = {
     exportBtn: "योजना डाउनलोड करें (CSV)", printBtn: "प्रिंट करें",
     methodTitle: "एडेप्टिव क्लोज्ड-लूप सिस्टम:",
     methodBody: "किसान की प्रतिक्रिया को समझकर मशीन लर्निंग मॉडल तुरंत नई बुवाई, सिंचाई और कटाई का समय निर्धारित करता है।",
+    pastHarvest: "पिछली फसल का परिणाम", success: "सफल", partial: "आंशिक", failure: "विफल",
     acresLabel: "एकड़", hectaresLabel: "हेक्टेयर", sqmLabel: "वर्ग मी",
     sowWindowNote: (name, season, sow) => `${name} बोने का सही समय (${season}): ${sow}`,
     inSeasonBanner: (day, total, stage) => `दिन ${day} / ${total}, अभी: ${stage} चरण`,
@@ -231,6 +236,7 @@ const T = {
     exportBtn: "பதிவிறக்கு (CSV)", printBtn: "அச்சிடு",
     methodTitle: "டைனமிக் பகுப்பாய்வு:",
     methodBody: "விவசாயியின் தகவலைப் பெற்று இயந்திர கற்றல் மாதிரி புதிய காலவரிசையையும் நீர்ப்பாசன அட்டவணையையும் வழங்குகிறது.",
+    pastHarvest: "முந்தைய அறுவடை", success: "வெற்றி", partial: "பகுதி", failure: "தோல்வி",
     acresLabel: "ஏக்கர்", hectaresLabel: "ஹெக்டேர்", sqmLabel: "சதுர மீ",
     sowWindowNote: (name, season, sow) => `${name} நடவு செய்ய சரியான நேரம் (${season}): ${sow}`,
     inSeasonBanner: (day, total, stage) => `நாள் ${day} / ${total}, இப்போது: ${stage} நிலை`,
@@ -303,10 +309,14 @@ export default function App() {
   const [inputs, setInputs] = useState({
     n: 90, p: 42, k: 43, temp: 24, humidity: 82, ph: 6.5, rainfall: 200
   });
+  const [isRecommending, setIsRecommending] = useState(false);
+  const [recommendation, setRecommendation] = useState(null);
 
   // Adaptive Feedback State
   const [daysElapsed, setDaysElapsed] = useState(35);
+  const [prevHarvest, setPrevHarvest] = useState("success");
   const [feedbackInput, setFeedbackInput] = useState("");
+  const [isListening, setIsListening] = useState(false);
   const [geminiApiKey, setGeminiApiKey] = useState("");
   const [isLoadingAdaptive, setIsLoadingAdaptive] = useState(false);
   const [adaptiveResult, setAdaptiveResult] = useState(null);
@@ -338,7 +348,61 @@ export default function App() {
     return t(lang, key, ...args);
   }
 
-  // Recommendation matches
+  function toggleSpeech() {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      alert("Speech recognition is not supported in this browser.");
+      return;
+    }
+    if (isListening) {
+      window.speechRecog?.stop();
+      setIsListening(false);
+      return;
+    }
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    recognition.lang = lang === "hi" ? "hi-IN" : lang === "ta" ? "ta-IN" : "en-IN";
+    recognition.interimResults = false;
+    recognition.onstart = () => setIsListening(true);
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      setFeedbackInput((prev) => (prev ? prev + " " + transcript : transcript));
+    };
+    recognition.onerror = (event) => {
+      console.error(event.error);
+      setIsListening(false);
+    };
+    recognition.onend = () => setIsListening(false);
+    window.speechRecog = recognition;
+    recognition.start();
+  }
+
+  async function getCropRecommendation() {
+    setIsRecommending(true);
+    setRecommendation(null);
+    try {
+      const res = await fetch("http://localhost:8000/api/recommend-crop", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          features: {
+            n: inputs.n, p: inputs.p, k: inputs.k,
+            temperature: inputs.temp, humidity: inputs.humidity,
+            ph: inputs.ph, rainfall: inputs.rainfall
+          }
+        })
+      });
+      if (!res.ok) throw new Error("Recommendation failed");
+      const data = await res.json();
+      setRecommendation(data);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to get recommendation from AI. Is the backend running?");
+    } finally {
+      setIsRecommending(false);
+    }
+  }
+
+  // --- Matches is no longer used since we fetch from AI, but kept for fallback or removed
   const matches = useMemo(() => {
     return CROPS.map((c) => {
       const { n, p, k, temp, humidity, ph, rainfall } = c.ideal;
@@ -494,7 +558,7 @@ export default function App() {
       },
       stages: crop.stages,
       region_id: "R1",
-      prev_harvest_success: "success",
+      prev_harvest_success: prevHarvest,
       gemini_api_key: geminiApiKey || undefined,
     };
 
@@ -1149,23 +1213,95 @@ export default function App() {
             </div>
 
             <div>
-              <p style={{ color: "var(--text-dim)", fontSize: 13, marginTop: 0, marginBottom: 14 }}>{tr("matchesHelp")}</p>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12 }}>
-                {matches.map(({ crop: c, score }) => (
-                  <div key={c.id} style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 12, padding: 16, textAlign: "center" }}>
-                    <div style={{ fontSize: 32, marginBottom: 8 }}>{CROP_ICON[c.id] || "🌱"}</div>
-                    <div style={{ fontFamily: "'Fraunces', serif", fontSize: 16, fontWeight: 600 }}>{tCropName(lang, c)}</div>
-                    <div style={{ fontSize: 12, color: "var(--water)", margin: "6px 0", fontFamily: "'IBM Plex Mono', monospace" }}>{score}% Match</div>
+              <p style={{ color: "var(--text-dim)", fontSize: 13, marginTop: 0, marginBottom: 14 }}>
+                Enter your soil and weather readings on the left, then use Explainable AI to find the best crop.
+              </p>
+              <button
+                className="irr-btn-primary"
+                style={{ width: "100%", padding: "14px", marginBottom: "20px", fontSize: "14px", display: "flex", justifyContent: "center", alignItems: "center", gap: "8px" }}
+                onClick={getCropRecommendation}
+                disabled={isRecommending}
+              >
+                {isRecommending ? <RefreshCw size={16} className="spin" /> : <Sparkles size={16} />}
+                {isRecommending ? "Analyzing with AI..." : "Get AI Crop Recommendation (with SHAP)"}
+              </button>
+
+              {recommendation && (
+                <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 12, padding: 20 }}>
+                  
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
+                    <div>
+                      <div style={{ fontSize: 11, color: "var(--water)", textTransform: 'uppercase', letterSpacing: '0.1em', fontFamily: "'IBM Plex Mono', monospace", marginBottom: 4 }}>
+                        Top Recommended Crop
+                      </div>
+                      <div style={{ fontFamily: "'Fraunces', serif", fontSize: 28, fontWeight: 700, color: "var(--growth)" }}>
+                        {CROP_ICON[recommendation.recommended_crop] || "🌱"} {recommendation.recommended_crop.charAt(0).toUpperCase() + recommendation.recommended_crop.slice(1)}
+                      </div>
+                    </div>
                     <button
                       className="irr-btn-primary"
-                      style={{ fontSize: 12, padding: 8, marginTop: 8 }}
-                      onClick={() => { setCropId(c.id); setMode("plan"); }}
+                      onClick={() => {
+                        const recCrop = CROPS.find(c => c.id === recommendation.recommended_crop) || CROPS[0];
+                        setCropId(recCrop.id);
+                        setMode("plan");
+                      }}
                     >
                       Use in Plan &rarr;
                     </button>
                   </div>
-                ))}
-              </div>
+
+                  <div style={{ background: "rgba(79, 163, 181, 0.1)", borderLeft: "3px solid var(--water)", padding: "12px 16px", borderRadius: "0 8px 8px 0", color: "var(--text)", fontSize: 13, lineHeight: 1.5, marginBottom: 20 }}>
+                    <b>AI Explanation:</b> {recommendation.explanation}
+                  </div>
+
+                  <div style={{ marginBottom: 16 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <BarChart2 size={14} color="var(--text-dim)"/> Feature Impact (SHAP Values)
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {recommendation.shap_values.map((shap, idx) => {
+                        const isPositive = shap.impact > 0;
+                        const maxAbs = Math.max(...recommendation.shap_values.map(s => Math.abs(s.impact)));
+                        const width = maxAbs > 0 ? (Math.abs(shap.impact) / maxAbs) * 100 : 0;
+                        return (
+                          <div key={idx} style={{ display: 'grid', gridTemplateColumns: '80px 1fr 40px', alignItems: 'center', gap: 12, fontSize: 11, fontFamily: "'IBM Plex Mono', monospace" }}>
+                            <div style={{ color: "var(--text-dim)", textAlign: 'right' }}>{shap.feature}</div>
+                            <div style={{ height: 6, background: "var(--surface-2)", borderRadius: 3, position: 'relative' }}>
+                              <div style={{ 
+                                position: 'absolute', 
+                                top: 0, bottom: 0, 
+                                left: isPositive ? '50%' : `calc(50% - ${width / 2}%)`, 
+                                width: `${width / 2}%`, 
+                                background: isPositive ? "var(--growth)" : "var(--alert)",
+                                borderRadius: 3 
+                              }} />
+                            </div>
+                            <div style={{ color: isPositive ? "var(--growth)" : "var(--alert)" }}>
+                              {shap.impact > 0 ? '+' : ''}{shap.impact.toFixed(2)}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  
+                  {recommendation.top_candidates.length > 1 && (
+                    <div style={{ borderTop: "1px solid var(--border)", paddingTop: 16, marginTop: 16 }}>
+                      <div style={{ fontSize: 11, color: "var(--text-dim)", textTransform: 'uppercase', marginBottom: 8, fontFamily: "'IBM Plex Mono', monospace" }}>
+                        Other Candidates
+                      </div>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        {recommendation.top_candidates.slice(1).map((c, i) => (
+                          <div key={i} style={{ background: "var(--surface-2)", padding: "4px 8px", borderRadius: 4, fontSize: 12, color: "var(--text-dim)" }}>
+                            {c.crop} ({(c.prob * 100).toFixed(1)}%)
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                </div>
+              )}
             </div>
           </div>
         )}

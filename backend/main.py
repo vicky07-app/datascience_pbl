@@ -67,6 +67,18 @@ class AdaptiveFeedbackResponse(BaseModel):
     actionable_advisory: str
 
 
+class CropRecommendationRequest(BaseModel):
+    features: SoilWeatherBaseline
+
+
+class CropRecommendationResponse(BaseModel):
+    status: str
+    recommended_crop: str
+    top_candidates: List[Dict[str, Any]]
+    shap_values: List[Dict[str, Any]]
+    explanation: str
+
+
 # -------------------------------------------------------------
 # API Endpoints
 # -------------------------------------------------------------
@@ -148,6 +160,26 @@ def adaptive_reschedule(req: AdaptiveFeedbackRequest, x_gemini_key: Optional[str
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Adaptive rescheduling failed: {str(e)}")
+
+
+@app.post("/api/recommend-crop", response_model=CropRecommendationResponse)
+def recommend_crop(req: CropRecommendationRequest):
+    try:
+        features_dict = req.features.model_dump()
+        result = engine.recommend_crop(features_dict)
+        
+        if "error" in result:
+            raise HTTPException(status_code=500, detail=result["error"])
+            
+        return CropRecommendationResponse(
+            status="success",
+            recommended_crop=result["recommended_crop"],
+            top_candidates=result["top_candidates"],
+            shap_values=result["shap_values"],
+            explanation=result["explanation"]
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Crop recommendation failed: {str(e)}")
 
 
 if __name__ == "__main__":
