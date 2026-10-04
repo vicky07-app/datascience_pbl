@@ -75,8 +75,10 @@ export default function CropPriceMap() {
       attributionControl: false
     }).setView([userLoc.lat, userLoc.lon], 7);
 
-    window.L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-      maxZoom: 19
+    // Esri World Dark Gray Canvas - 100% free, dark aesthetic, no API key needed
+    window.L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 16,
+      attribution: '&copy; Esri &mdash; Esri, DeLorme, NAVTEQ'
     }).addTo(map);
 
     window.L.control.zoom({ position: 'bottomright' }).addTo(map);
