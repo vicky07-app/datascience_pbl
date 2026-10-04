@@ -214,7 +214,12 @@ export default function CropPriceMap({ initialCrop }) {
             <span style="color:#94a3b8;font-size:0.8rem;">${market.distance_km.toFixed(1)} km</span>
           </div>
           <h3 style="margin:0 0 2px;font-size:1.05rem;">${market.name}</h3>
-          <p style="margin:0 0 8px;color:#94a3b8;font-size:0.85rem;">📍 ${market.district}</p>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+            <p style="margin:0;color:#94a3b8;font-size:0.85rem;">📍 ${market.district}</p>
+            <a href="https://www.google.com/maps?q=${market.latitude},${market.longitude}" target="_blank" style="color:#4BBFD6;text-decoration:none;display:flex;align-items:center;gap:4px;font-size:0.75rem;background:rgba(75,191,214,0.1);padding:3px 8px;border-radius:99px;transition:0.2s;" onmouseover="this.style.background='rgba(75,191,214,0.2)'" onmouseout="this.style.background='rgba(75,191,214,0.1)'" title="Open in Google Maps">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg> GMap
+            </a>
+          </div>
           <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:10px;">
             <span style="font-size:1.6rem;font-weight:800;color:#10b981;">${formatINR(market.current_price)}</span>
             <span style="font-size:0.75rem;color:#94a3b8;">/ quintal</span>
