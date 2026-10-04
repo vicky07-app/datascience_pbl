@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Search, MapPin, Navigation, TrendingUp, TrendingDown, Calendar, BarChart3, Zap, Target, ArrowUpRight, ArrowDownRight, Minus, X } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
+import './CropPriceMap.css';
 
 const API_BASE = 'http://127.0.0.1:8000/api';
 
@@ -31,7 +32,7 @@ const CATEGORY_EMOJIS = {
 
 const MONTH_NAMES = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-export default function CropPriceMap() {
+export default function CropPriceMap({ initialCrop }) {
   const mapRef = useRef(null);
   const mapInstance = useRef(null);
   const markersRef = useRef([]);
@@ -58,13 +59,22 @@ export default function CropPriceMap() {
   useEffect(() => {
     fetch(`${API_BASE}/crops`)
       .then(res => res.json())
-      .then(data => setCrops(data.crops || []))
+      .then(data => {
+        const cropList = data.crops || [];
+        setCrops(cropList);
+        if (initialCrop) {
+          const match = cropList.find(c => c.toLowerCase() === initialCrop.toLowerCase());
+          if (match) {
+            selectCrop(match);
+          }
+        }
+      })
       .catch(console.error);
     fetch(`${API_BASE}/crop-categories`)
       .then(res => res.json())
       .then(data => setCategories(data.categories || {}))
       .catch(console.error);
-  }, []);
+  }, [initialCrop]);
 
   // Initialize map
   useEffect(() => {
@@ -96,6 +106,13 @@ export default function CropPriceMap() {
     userMarkerRef.current.bindPopup('<div class="cpm-popup"><h3>📍 Your Location</h3><p>Tamil Nadu Center</p></div>');
 
     mapInstance.current = map;
+
+    // Invalidate size to ensure proper tile rendering in responsive layouts and tabs
+    setTimeout(() => {
+      if (mapInstance.current) {
+        mapInstance.current.invalidateSize();
+      }
+    }, 250);
 
     return () => {
       if (mapInstance.current) {
@@ -223,6 +240,10 @@ export default function CropPriceMap() {
       const m = markets.find(x => x.name === marketName);
       setSelectedMarket(m || { name: marketName });
       fetchPrediction(marketName);
+      setTimeout(() => {
+        const panel = document.querySelector('.cpm-panel-section');
+        if (panel) panel.scrollIntoView({ behavior: 'smooth' });
+      }, 150);
     };
     return () => { delete window.__predictClick; };
   }, [selectedCrop, markets]);

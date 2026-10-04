@@ -1,34 +1,30 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
-:root {
-  --bg-primary: #0b0f19;
-  --bg-secondary: rgba(20, 26, 40, 0.7);
+
+.cpm-container {
+  --bg-primary: #0B1612;
+  --bg-secondary: rgba(11, 22, 18, 0.85);
   --glass-border: rgba(255, 255, 255, 0.1);
-  --glass-bg: rgba(30, 41, 59, 0.6);
+  --glass-bg: rgba(15, 28, 20, 0.75);
   --text-primary: #f8fafc;
   --text-secondary: #94a3b8;
   --accent-teal: #0d9488;
   --accent-emerald: #10b981;
   --accent-orange: #f97316;
   --accent-red: #ef4444;
-}
 
-body {
-  margin: 0;
-  font-family: 'Inter', sans-serif;
-  background-color: var(--bg-primary);
-  color: var(--text-primary);
-  overflow-x: hidden;
-}
-
-.cpm-container {
   display: flex;
   flex-direction: column;
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  min-height: 760px;
   position: relative;
-  background: radial-gradient(circle at top right, #111827, #0b0f19);
+  background: radial-gradient(circle at top right, #0F1C14, #0B1612);
+  border-radius: 14px;
+  border: 1px solid var(--glass-border);
   overflow: hidden;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  color: var(--text-primary);
+  box-sizing: border-box;
 }
 
 .cpm-container::before {
@@ -49,6 +45,7 @@ body {
   display: flex;
   gap: 1.5rem;
   align-items: center;
+  flex-wrap: wrap;
   background: var(--glass-bg);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -91,6 +88,7 @@ body {
   top: 100%;
   left: 0;
   width: 100%;
+  min-width: 280px;
   margin-top: 0.5rem;
   background: var(--bg-secondary);
   backdrop-filter: blur(16px);
@@ -140,24 +138,35 @@ body {
 
 .cpm-content {
   display: flex;
-  flex: 1;
+  flex-direction: column;
+  min-height: 680px;
   position: relative;
   z-index: 1;
+}
+
+@media (max-width: 992px) {
+  .cpm-content {
+    flex-direction: column;
+  }
 }
 
 .cpm-map-section {
   flex: 6;
   position: relative;
+  min-height: 480px;
 }
 
 .cpm-map-container {
   width: 100%;
   height: 100%;
-  background: #000;
+  min-height: 480px;
+  background: #111827;
 }
 
 .leaflet-container {
-  font-family: 'Inter', sans-serif !important;
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
+  width: 100%;
+  height: 100%;
 }
 .leaflet-popup-content-wrapper, .leaflet-popup-tip {
   background: var(--bg-secondary) !important;
@@ -194,15 +203,25 @@ body {
 
 .cpm-panel-section {
   flex: 4;
+  min-width: 360px;
   background: var(--bg-secondary);
   backdrop-filter: blur(20px);
-  border-left: 1px solid var(--glass-border);
-  padding: 1.5rem;
+  border-top: 1px solid var(--glass-border);
+  padding: 1.25rem;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1.25rem;
   overflow-y: auto;
+  max-height: 720px;
   box-shadow: -10px 0 30px rgba(0,0,0,0.3);
+}
+
+@media (max-width: 992px) {
+  .cpm-panel-section {
+    border-left: none;
+    border-top: 1px solid var(--glass-border);
+    max-height: none;
+  }
 }
 
 .cpm-panel-section::-webkit-scrollbar {

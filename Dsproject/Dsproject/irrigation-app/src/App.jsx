@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from "react";
+import LandingPage from "./LandingPage.jsx";
 import {
   BarChart,
   Bar,
@@ -38,7 +39,9 @@ import {
   SlidersHorizontal,
   Volume2,
   VolumeX,
+  TrendingUp,
 } from "lucide-react";
+import CropPriceMap from "./CropPriceMap.jsx";
 
 /* ------------------------------------------------------------------ */
 /* CROP DATA                                                           */
@@ -371,6 +374,26 @@ const PRESET_FEEDBACKS = [
 ];
 
 export default function App() {
+  const [showLanding, setShowLanding] = useState(true);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+
+  function handleNavigate(tab) {
+    setIsTransitioning(true);
+    setTimeout(() => {
+      setShowLanding(false);
+      setMode(tab);
+      setIsTransitioning(false);
+    }, 380);
+  }
+
+  function handleBackToLanding() {
+    setIsTransitioning(true);
+    setTimeout(() => {
+      setShowLanding(true);
+      setIsTransitioning(false);
+    }, 380);
+  }
+
   const [lang, setLang] = useState("en");
   const [mode, setMode] = useState("timeline"); // "recommend" | "timeline"
   const [showFieldSetup, setShowFieldSetup] = useState(false);
@@ -927,24 +950,33 @@ export default function App() {
     background: `radial-gradient(ellipse at 20% -20%, ${activeTheme}2A, transparent 55%), radial-gradient(ellipse at 90% 0%, ${activeTheme}22, transparent 50%), var(--bg)`,
   };
 
+  if (showLanding) {
+    return (
+      <div style={{ opacity: isTransitioning ? 0 : 1, transition: "opacity 0.38s ease" }}>
+        <LandingPage onNavigate={handleNavigate} lang={lang} setLang={setLang} />
+      </div>
+    );
+  }
+
   return (
+    <div style={{ opacity: isTransitioning ? 0 : 1, transition: "opacity 0.38s ease" }}>
     <div className="irr-root">
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
         .irr-root {
-          --bg: #17140F;
-          --surface: #211C15;
-          --surface-2: #2A231A;
-          --border: #3A3226;
-          --text: #EDE6D6;
-          --text-dim: #A99C82;
-          --water: #4FA3B5;
-          --harvest: #D69A46;
-          --growth: #7FA65C;
+          --bg: #0B1612;
+          --surface: #0F1C14;
+          --surface-2: #122018;
+          --border: #1F3027;
+          --text: #E8F2EA;
+          --text-dim: #5C8A6E;
+          --water: #4BBFD6;
+          --harvest: #E8C04A;
+          --growth: #3ECF8E;
           --alert: #E06C75;
-          --soil: #8B5E34;
-          font-family: 'IBM Plex Sans', sans-serif;
+          --soil: #8C6B4A;
+          font-family: 'Plus Jakarta Sans', sans-serif;
           background: var(--bg);
           color: var(--text);
           border-radius: 14px;
@@ -955,26 +987,26 @@ export default function App() {
           border: 1px solid var(--border);
         }
         .irr-root * { box-sizing: border-box; }
-        .irr-mono { font-family: 'IBM Plex Mono', monospace; }
+        .irr-mono { font-family: 'JetBrains Mono', monospace; }
 
         .irr-hero { padding: 28px 32px 24px; border-bottom: 1px solid var(--border); transition: background 0.5s ease; }
         .irr-hero-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
         .irr-eyebrow {
           display: inline-flex; align-items: center; gap: 6px;
-          font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.1em;
+          font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.1em;
           text-transform: uppercase; color: var(--growth);
           border: 1px solid rgba(127,166,92,0.35); background: rgba(127,166,92,0.08);
           padding: 4px 10px; border-radius: 999px;
         }
         .irr-lang-toggle { display: flex; gap: 4px; background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 3px; }
         .irr-lang-btn {
-          font-family: 'IBM Plex Mono', monospace; font-size: 12px; padding: 5px 12px; border-radius: 999px;
+          font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 5px 12px; border-radius: 999px;
           cursor: pointer; color: var(--text-dim); border: none; background: transparent;
         }
         .irr-lang-btn.active { background: var(--growth); color: #17140F; font-weight: 600; }
 
         .irr-title {
-          font-family: 'Fraunces', serif; font-weight: 700; font-size: 32px;
+          font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 700; font-size: 32px;
           line-height: 1.15; margin: 0 0 10px; letter-spacing: -0.01em;
           text-align: center;
         }
@@ -983,7 +1015,7 @@ export default function App() {
 
         .irr-tabs { display: flex; gap: 8px; padding: 20px 32px 0; border-bottom: 1px solid var(--border); }
         .irr-tab {
-          font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; letter-spacing: 0.03em;
+          font-family: 'JetBrains Mono', monospace; font-size: 12.5px; letter-spacing: 0.03em;
           padding: 10px 16px; border-radius: 9px 9px 0 0; cursor: pointer; border: 1px solid var(--border);
           border-bottom: none; background: var(--surface); color: var(--text-dim);
           display: flex; align-items: center; gap: 7px; transition: all .15s ease;
@@ -997,35 +1029,35 @@ export default function App() {
 
         .irr-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
         .irr-panel h3 {
-          font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+          font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
           color: var(--text-dim); margin: 0 0 16px; display: flex; align-items: center; gap: 6px;
         }
         .irr-field { margin-bottom: 16px; }
         .irr-field label { display: flex; justify-content: space-between; font-size: 12.5px; color: var(--text-dim); margin-bottom: 6px; }
-        .irr-field label span.val { color: var(--harvest); font-family: 'IBM Plex Mono', monospace; }
+        .irr-field label span.val { color: var(--harvest); font-family: 'JetBrains Mono', monospace; }
         .irr-field input[type=range] { width: 100%; accent-color: var(--growth); height: 4px; }
         .irr-field input[type=number], .irr-field input[type=date], .irr-field input[type=text], .irr-field select, .irr-field textarea {
           width: 100%; background: var(--surface-2); border: 1px solid var(--border); color: var(--text);
-          padding: 9px 10px; border-radius: 8px; font-size: 13px; font-family: 'IBM Plex Sans', sans-serif;
+          padding: 9px 10px; border-radius: 8px; font-size: 13px; font-family: 'Plus Jakarta Sans', sans-serif;
         }
         .irr-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
         .irr-summary { display: grid; grid-template-columns: repeat(auto-fit,minmax(140px,1fr)); gap: 10px; margin-bottom: 20px; }
         .irr-stat { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; position: relative; }
-        .irr-stat .lbl { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dim); font-family: 'IBM Plex Mono', monospace; }
-        .irr-stat .val { font-family: 'Fraunces', serif; font-size: 18px; margin-top: 4px; color: var(--text); }
-        .irr-stat .badge { font-size: 10px; padding: 2px 6px; border-radius: 4px; position: absolute; top: 10px; right: 10px; font-family: 'IBM Plex Mono', monospace; }
+        .irr-stat .lbl { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dim); font-family: 'JetBrains Mono', monospace; }
+        .irr-stat .val { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 18px; margin-top: 4px; color: var(--text); }
+        .irr-stat .badge { font-size: 10px; padding: 2px 6px; border-radius: 4px; position: absolute; top: 10px; right: 10px; font-family: 'JetBrains Mono', monospace; }
 
         .irr-timeline { display: flex; flex-direction: column; gap: 8px; margin-bottom: 24px; }
         .irr-stage-card {
           display: grid; grid-template-columns: 180px 1fr auto; gap: 14px; align-items: center; padding: 14px 16px;
           border-radius: 8px; border-left: 4px solid var(--border); background: var(--surface); border-top: 1px solid var(--border); border-right: 1px solid var(--border); border-bottom: 1px solid var(--border);
         }
-        .irr-stage-name { font-family: 'Fraunces', serif; font-size: 15px; font-weight: 600; }
-        .irr-stage-dates { font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: rgba(237,230,214,0.75); margin-top: 2px; }
+        .irr-stage-name { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 15px; font-weight: 600; }
+        .irr-stage-dates { font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: rgba(237,230,214,0.75); margin-top: 2px; }
         .irr-stage-mid { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-        .irr-kc-chip { font-family: 'IBM Plex Mono', monospace; font-size: 11px; background: rgba(0,0,0,0.3); padding: 3px 8px; border-radius: 999px; color: rgba(237,230,214,0.85); border: 1px solid var(--border); }
-        .irr-stage-right { font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; text-align: right; color: rgba(237,230,214,0.8); white-space: nowrap; }
+        .irr-kc-chip { font-family: 'JetBrains Mono', monospace; font-size: 11px; background: rgba(0,0,0,0.3); padding: 3px 8px; border-radius: 999px; color: rgba(237,230,214,0.85); border: 1px solid var(--border); }
+        .irr-stage-right { font-family: 'JetBrains Mono', monospace; font-size: 11.5px; text-align: right; color: rgba(237,230,214,0.8); white-space: nowrap; }
 
         .irr-banner-adaptive {
           background: linear-gradient(90deg, rgba(79,163,181,0.15), rgba(127,166,92,0.15));
@@ -1043,7 +1075,7 @@ export default function App() {
         .irr-btn-primary {
           width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;
           background: var(--growth); color: #17140F; border: none; padding: 11px; border-radius: 8px;
-          font-size: 13.5px; font-weight: 600; cursor: pointer; font-family: 'IBM Plex Sans', sans-serif;
+          font-size: 13.5px; font-weight: 600; cursor: pointer; font-family: 'Plus Jakarta Sans', sans-serif;
           transition: transform 0.1s ease;
         }
         .irr-btn-primary:active { transform: scale(0.98); }
@@ -1084,7 +1116,7 @@ export default function App() {
           display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px;
         }
         .irr-modal-header h3 {
-          font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: 0.1em;
+          font-family: 'JetBrains Mono', monospace; font-size: 12px; letter-spacing: 0.1em;
           text-transform: uppercase; color: var(--text-dim); margin: 0; display: flex; align-items: center; gap: 6px;
         }
         .irr-modal-close {
@@ -1097,7 +1129,7 @@ export default function App() {
         .irr-action-btn {
           display: flex; align-items: center; gap: 8px; padding: 12px 16px;
           background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
-          cursor: pointer; color: var(--text); font-family: 'IBM Plex Sans', sans-serif;
+          cursor: pointer; color: var(--text); font-family: 'Plus Jakarta Sans', sans-serif;
           font-size: 13px; transition: all 0.15s ease; width: 100%;
         }
         .irr-action-btn:hover { border-color: var(--growth); background: rgba(127,166,92,0.08); }
@@ -1105,7 +1137,7 @@ export default function App() {
         .irr-mic-btn {
           background: var(--surface-2); border: 1px solid var(--border); color: var(--text-dim);
           padding: 8px 12px; border-radius: 8px; cursor: pointer; display: flex;
-          align-items: center; gap: 6px; font-size: 12px; font-family: 'IBM Plex Mono', monospace;
+          align-items: center; gap: 6px; font-size: 12px; font-family: 'JetBrains Mono', monospace;
           transition: all 0.15s;
         }
         .irr-mic-btn:hover { border-color: var(--water); color: var(--water); }
@@ -1118,7 +1150,7 @@ export default function App() {
         .irr-voice-btn {
           background: rgba(79,163,181,0.12); border: 1px solid var(--water); color: var(--water);
           padding: 6px 12px; border-radius: 8px; cursor: pointer; display: inline-flex;
-          align-items: center; gap: 8px; font-size: 12px; font-family: 'IBM Plex Mono', monospace;
+          align-items: center; gap: 8px; font-size: 12px; font-family: 'JetBrains Mono', monospace;
           font-weight: 600; transition: all 0.15s ease;
         }
         .irr-voice-btn:hover { background: rgba(79,163,181,0.22); }
@@ -1145,7 +1177,20 @@ export default function App() {
       {/* HERO SECTION */}
       <div className="irr-hero" style={heroStyle}>
         <div className="irr-hero-top">
-          <div className="irr-eyebrow"><Leaf size={13} /> {tr("eyebrow")}</div>
+          <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+            <button
+              onClick={handleBackToLanding}
+              style={{
+                background: "transparent", border: "1px solid var(--border)",
+                color: "var(--text-dim)", padding: "4px 10px", borderRadius: 999,
+                fontSize: 11, cursor: "pointer", fontFamily: "'JetBrains Mono', monospace",
+                transition: "all 0.15s", display: "flex", alignItems: "center", gap: 6
+              }}
+            >
+              ← Home
+            </button>
+            <div className="irr-eyebrow"><Leaf size={13} /> {tr("eyebrow")}</div>
+          </div>
           <div className="irr-lang-toggle">
             {LANGS.map((l) => (
               <button key={l.key} className={`irr-lang-btn ${lang === l.key ? "active" : ""}`} onClick={() => setLang(l.key)}>
@@ -1167,6 +1212,9 @@ export default function App() {
           <div id="tab-recommend" className={`irr-tab ${mode === "recommend" ? "active" : ""}`} onClick={() => setMode("recommend")}>
             <Leaf size={14} /> {tr("tabRecommend")}
           </div>
+          <div id="tab-market" className={`irr-tab ${mode === "market" ? "active" : ""}`} onClick={() => setMode("market")}>
+            <TrendingUp size={14} /> Market Prices & Map
+          </div>
         </div>
 
         {/* Action buttons (only in timeline mode) */}
@@ -1175,7 +1223,7 @@ export default function App() {
             <button
               onClick={() => setShowFieldSetup(true)}
               style={{
-                fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, padding: "6px 12px", borderRadius: 8,
+                fontFamily: "'JetBrains Mono', monospace", fontSize: 12, padding: "6px 12px", borderRadius: 8,
                 background: "var(--surface-2)", border: "1px solid var(--border)", color: "var(--text)",
                 cursor: "pointer", display: "flex", alignItems: "center", gap: 6, transition: "all 0.15s"
               }}
@@ -1185,7 +1233,7 @@ export default function App() {
             <button
               onClick={() => setShowFeedback(true)}
               style={{
-                fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, padding: "6px 12px", borderRadius: 8,
+                fontFamily: "'JetBrains Mono', monospace", fontSize: 12, padding: "6px 12px", borderRadius: 8,
                 background: "var(--surface-2)", border: "1px solid var(--water)", color: "var(--water)",
                 cursor: "pointer", display: "flex", alignItems: "center", gap: 6, transition: "all 0.15s"
               }}
@@ -1203,7 +1251,7 @@ export default function App() {
             <div style={{ display: "inline-flex", padding: 16, background: "rgba(79,163,181,0.1)", borderRadius: 999, marginBottom: 16, border: "1px solid rgba(79,163,181,0.3)" }}>
               <RefreshCw size={32} className="spin" color="var(--water)" />
             </div>
-            <div style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 700, color: "var(--text)", marginBottom: 8 }}>
+            <div style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: 20, fontWeight: 700, color: "var(--text)", marginBottom: 8 }}>
               {isRecommending ? "Analyzing Soil & Weather with Model..." : "Recalculating Timeline with Model..."}
             </div>
             <div style={{ color: "var(--text-dim)", fontSize: 13, lineHeight: 1.5, marginBottom: 16 }}>
@@ -1234,9 +1282,9 @@ export default function App() {
               <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 10, padding: "14px 16px", marginBottom: 16, display: "flex", alignItems: "center", gap: 12 }}>
                 <span style={{ fontSize: 26 }}>{CROP_ICON[crop.id] || "🌱"}</span>
                 <div>
-                  <div style={{ fontSize: 10, color: "var(--growth)", fontFamily: "'IBM Plex Mono', monospace", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 600 }}>Active Crop in Plan</div>
-                  <div style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 700, color: "var(--text)", marginTop: 2 }}>{tCropName(lang, crop)}</div>
-                  <div style={{ fontSize: 11, color: "var(--text-dim)", fontFamily: "'IBM Plex Mono', monospace" }}>{crop.season} · {crop.duration} days</div>
+                  <div style={{ fontSize: 10, color: "var(--growth)", fontFamily: "'JetBrains Mono', monospace", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 600 }}>Active Crop in Plan</div>
+                  <div style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: 18, fontWeight: 700, color: "var(--text)", marginTop: 2 }}>{tCropName(lang, crop)}</div>
+                  <div style={{ fontSize: 11, color: "var(--text-dim)", fontFamily: "'JetBrains Mono', monospace" }}>{crop.season} · {crop.duration} days</div>
                 </div>
               </div>
 
@@ -1274,8 +1322,8 @@ export default function App() {
               {/* Current stage indicator */}
               {inSeason && currentStage && (
                 <div style={{ marginTop: 16, background: "rgba(127,166,92,0.1)", border: "1px solid rgba(127,166,92,0.3)", borderRadius: 10, padding: "12px 14px", fontSize: 12.5 }}>
-                  <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--growth)", marginBottom: 4 }}>📍 Current Stage</div>
-                  <div style={{ fontFamily: "'Fraunces', serif", fontSize: 15, fontWeight: 600 }}>{currentStage.stage}</div>
+                  <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--growth)", marginBottom: 4 }}>📍 Current Stage</div>
+                  <div style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: 15, fontWeight: 600 }}>{currentStage.stage}</div>
                   <div style={{ fontSize: 11, color: "var(--text-dim)", marginTop: 2 }}>
                     Day {dayInSeason + 1} of {crop.duration}
                   </div>
@@ -1293,7 +1341,7 @@ export default function App() {
                   boxShadow: "0 8px 24px rgba(79,163,181,0.15)"
                 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
-                    <div style={{ fontSize: 12, fontFamily: "'IBM Plex Mono', monospace", color: "var(--water)", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}>
+                    <div style={{ fontSize: 12, fontFamily: "'JetBrains Mono', monospace", color: "var(--water)", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}>
                       <Sparkles size={15} /> Model Stage Suggestion
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -1316,7 +1364,7 @@ export default function App() {
                           </>
                         )}
                       </button>
-                      <span style={{ fontSize: 11, background: "rgba(79,163,181,0.2)", color: "var(--water)", padding: "4px 8px", borderRadius: 4, fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600 }}>
+                      <span style={{ fontSize: 11, background: "rgba(79,163,181,0.2)", color: "var(--water)", padding: "4px 8px", borderRadius: 4, fontFamily: "'JetBrains Mono', monospace", fontWeight: 600 }}>
                         {currentStage ? currentStage.stage : 'Active'} Stage (Day {daysElapsed})
                       </span>
                     </div>
@@ -1330,7 +1378,7 @@ export default function App() {
                   {/* Checklist of recommended actions */}
                   {llmFeedbackPreview.suggested_actions && llmFeedbackPreview.suggested_actions.length > 0 && (
                     <div style={{ marginBottom: 14 }}>
-                      <div style={{ fontSize: 11, fontFamily: "'IBM Plex Mono', monospace", color: "var(--text-dim)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>
+                      <div style={{ fontSize: 11, fontFamily: "'JetBrains Mono', monospace", color: "var(--text-dim)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>
                         Action Checklist:
                       </div>
                       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -1346,7 +1394,7 @@ export default function App() {
 
                   {/* Timeline shift preview details */}
                   <div style={{ padding: "10px 14px", background: "var(--surface-2)", borderRadius: 8, border: "1px solid var(--border)", marginBottom: 14 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12, fontFamily: "'IBM Plex Mono', monospace" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12, fontFamily: "'JetBrains Mono', monospace" }}>
                       <span style={{ color: "var(--text-dim)" }}>Proposed Timeline Duration:</span>
                       <span style={{ fontWeight: 700, color: (llmFeedbackPreview.timeline_reschedule?.net_shift_days || 0) !== 0 ? "var(--alert)" : "var(--growth)" }}>
                         {llmFeedbackPreview.timeline_reschedule?.original_total_days}d &rarr; {llmFeedbackPreview.timeline_reschedule?.adapted_total_days}d ({(llmFeedbackPreview.timeline_reschedule?.net_shift_days || 0) > 0 ? '+' : ''}{llmFeedbackPreview.timeline_reschedule?.net_shift_days || 0}d)
@@ -1359,7 +1407,7 @@ export default function App() {
                           fontSize: 11, padding: "3px 8px", borderRadius: 4,
                           background: st.delta_days !== 0 ? (st.delta_days > 0 ? "rgba(224,108,117,0.2)" : "rgba(127,166,92,0.2)") : "rgba(0,0,0,0.3)",
                           color: st.delta_days !== 0 ? (st.delta_days > 0 ? "var(--alert)" : "var(--growth)") : "var(--text-dim)",
-                          fontFamily: "'IBM Plex Mono', monospace"
+                          fontFamily: "'JetBrains Mono', monospace"
                         }}>
                           {st.name}: <b>{st.adapted_days}d</b> {st.delta_days !== 0 && `(${st.delta_days > 0 ? '+' : ''}${st.delta_days}d)`}
                         </div>
@@ -1378,7 +1426,7 @@ export default function App() {
                     </button>
                     <button
                       onClick={() => setLlmFeedbackPreview(null)}
-                      style={{ background: "var(--surface-2)", border: "1px solid var(--border)", color: "var(--text-dim)", padding: "0 16px", borderRadius: 8, fontSize: 12, cursor: "pointer", fontFamily: "'IBM Plex Mono', monospace" }}
+                      style={{ background: "var(--surface-2)", border: "1px solid var(--border)", color: "var(--text-dim)", padding: "0 16px", borderRadius: 8, fontSize: 12, cursor: "pointer", fontFamily: "'JetBrains Mono', monospace" }}
                     >
                       ✕ Dismiss
                     </button>
@@ -1392,10 +1440,10 @@ export default function App() {
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
                     <div style={{ flex: 1, minWidth: 260 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                        <div style={{ fontSize: 11, fontFamily: "'IBM Plex Mono', monospace", color: "var(--water)", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}>
+                        <div style={{ fontSize: 11, fontFamily: "'JetBrains Mono', monospace", color: "var(--water)", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}>
                           <Sparkles size={13} /> Active Model Stage Copilot
                         </div>
-                        <span style={{ fontSize: 10, background: "rgba(79,163,181,0.2)", color: "var(--water)", padding: "1px 6px", borderRadius: 4, fontFamily: "'IBM Plex Mono', monospace" }}>
+                        <span style={{ fontSize: 10, background: "rgba(79,163,181,0.2)", color: "var(--water)", padding: "1px 6px", borderRadius: 4, fontFamily: "'JetBrains Mono', monospace" }}>
                           {currentStage ? currentStage.stage : 'Vegetative'} Stage
                         </span>
 
@@ -1420,7 +1468,7 @@ export default function App() {
                           )}
                         </button>
                       </div>
-                      <div style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 600, marginTop: 4 }}>
+                      <div style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: 18, fontWeight: 600, marginTop: 4 }}>
                         {adaptiveResult.farmer_explanation}
                       </div>
                       
@@ -1446,7 +1494,7 @@ export default function App() {
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                       <div style={{
                         textAlign: "right", padding: "6px 12px", borderRadius: 8,
-                        background: "rgba(0,0,0,0.3)", border: "1px solid var(--border)", fontFamily: "'IBM Plex Mono', monospace"
+                        background: "rgba(0,0,0,0.3)", border: "1px solid var(--border)", fontFamily: "'JetBrains Mono', monospace"
                       }}>
                         <div style={{ fontSize: 10, color: "var(--text-dim)" }}>NET SHIFT</div>
                         <div style={{
@@ -1459,7 +1507,7 @@ export default function App() {
                       </div>
                       <button
                         onClick={() => setShowFeedback(true)}
-                        style={{ background: "var(--surface-2)", border: "1px solid var(--water)", color: "var(--water)", padding: "6px 10px", borderRadius: 6, fontSize: 11, cursor: "pointer", fontFamily: "'IBM Plex Mono', monospace" }}
+                        style={{ background: "var(--surface-2)", border: "1px solid var(--water)", color: "var(--water)", padding: "6px 10px", borderRadius: 6, fontSize: 11, cursor: "pointer", fontFamily: "'JetBrains Mono', monospace" }}
                       >
                         Edit
                       </button>
@@ -1505,7 +1553,7 @@ export default function App() {
                               color: "#fff",
                               padding: "2px 7px",
                               borderRadius: 4,
-                              fontFamily: "'IBM Plex Mono', monospace",
+                              fontFamily: "'JetBrains Mono', monospace",
                               fontWeight: 600,
                               display: "inline-flex",
                               alignItems: "center",
@@ -1515,7 +1563,7 @@ export default function App() {
                             </span>
                           )}
                           {(isCurrent || isAdaptedActive) && !isShifted && (
-                            <span style={{ fontSize: 10, background: isAdaptedActive ? "var(--water)" : "var(--growth)", color: "#17140F", padding: "1px 6px", borderRadius: 4, fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600 }}>
+                            <span style={{ fontSize: 10, background: isAdaptedActive ? "var(--water)" : "var(--growth)", color: "#17140F", padding: "1px 6px", borderRadius: 4, fontFamily: "'JetBrains Mono', monospace", fontWeight: 600 }}>
                               CURRENT
                             </span>
                           )}
@@ -1543,7 +1591,7 @@ export default function App() {
 
               {/* Water Consumption Chart */}
               <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 10, padding: 16, marginBottom: 20 }}>
-                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--text-dim)", textTransform: "uppercase", marginBottom: 10 }}>
+                <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: "var(--text-dim)", textTransform: "uppercase", marginBottom: 10 }}>
                   Stage Water Consumption (mm/day)
                 </div>
                 <ResponsiveContainer width="100%" height={180}>
@@ -1561,20 +1609,20 @@ export default function App() {
               {adaptiveHistory.length > 0 && (
                 <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 10, padding: 16 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                    <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "var(--water)", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
+                    <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: "var(--water)", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
                       <Activity size={13} /> Farm Memory: Feedback Audit Trail
                     </div>
-                    <span style={{ fontSize: 11, color: "var(--text-dim)", fontFamily: "'IBM Plex Mono', monospace" }}>{adaptiveHistory.length} entries</span>
+                    <span style={{ fontSize: 11, color: "var(--text-dim)", fontFamily: "'JetBrains Mono', monospace" }}>{adaptiveHistory.length} entries</span>
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 200, overflowY: "auto" }}>
                     {adaptiveHistory.map((h) => (
                       <div key={h.id} style={{ background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: 6, padding: "8px 12px", fontSize: 12 }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "var(--text-dim)" }}>
+                          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: "var(--text-dim)" }}>
                             {new Date(h.timestamp).toLocaleString()} &middot; Day {h.days_since_sowing}
                           </span>
                           <span style={{
-                            fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700,
+                            fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700,
                             color: h.shift_days > 0 ? "var(--alert)" : h.shift_days < 0 ? "var(--growth)" : "var(--text-dim)"
                           }}>
                             {h.shift_days > 0 ? `+${h.shift_days}d shift` : h.shift_days < 0 ? `${h.shift_days}d shift` : "No shift"}
@@ -1678,7 +1726,7 @@ export default function App() {
                       onClick={() => setPrevHarvest(v)}
                       style={{
                         padding: "4px 10px", borderRadius: 6, fontSize: 11, cursor: "pointer",
-                        fontFamily: "'IBM Plex Mono', monospace",
+                        fontFamily: "'JetBrains Mono', monospace",
                         background: prevHarvest === v ? (v === "success" ? "var(--growth)" : v === "failure" ? "var(--alert)" : "var(--harvest)") : "var(--surface-2)",
                         color: prevHarvest === v ? "#17140F" : "var(--text-dim)",
                         border: "1px solid " + (prevHarvest === v ? "transparent" : "var(--border)")
@@ -1800,7 +1848,7 @@ export default function App() {
               {topReasonTab && matches.length > 0 && (
                 <div style={{ background: "var(--surface)", border: "1px solid var(--water)", borderRadius: 12, padding: 18, marginBottom: 20, animation: "irr-slide-up 0.2s ease" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                    <div style={{ fontSize: 12, fontFamily: "'IBM Plex Mono', monospace", color: "var(--water)", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
+                    <div style={{ fontSize: 12, fontFamily: "'JetBrains Mono', monospace", color: "var(--water)", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
                       <Info size={14} /> Top Recommendation Analysis — {tCropName(lang, matches[0].crop)}
                     </div>
                     <button
@@ -1832,7 +1880,7 @@ export default function App() {
                             const maxAbs = Math.max(1, ...recommendation.shap_values.map(s => Math.abs(s.impact || 0)));
                             const width = (Math.abs(impact) / maxAbs) * 100;
                             return (
-                              <div key={idx} style={{ display: 'grid', gridTemplateColumns: '80px 1fr 40px', alignItems: 'center', gap: 12, fontSize: 11, fontFamily: "'IBM Plex Mono', monospace" }}>
+                              <div key={idx} style={{ display: 'grid', gridTemplateColumns: '80px 1fr 40px', alignItems: 'center', gap: 12, fontSize: 11, fontFamily: "'JetBrains Mono', monospace" }}>
                                 <div style={{ color: "var(--text-dim)", textAlign: 'right' }}>{shap.feature}</div>
                                 <div style={{ height: 6, background: "var(--surface-2)", borderRadius: 3, position: 'relative' }}>
                                   <div style={{ 
@@ -1873,26 +1921,26 @@ export default function App() {
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                           <span style={{ fontSize: 22 }}>{CROP_ICON[m.crop.id] || '🌱'}</span>
                           <div>
-                            <div style={{ fontFamily: "'Fraunces', serif", fontSize: 15, fontWeight: 600 }}>
+                            <div style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: 15, fontWeight: 600 }}>
                               {tCropName(lang, m.crop)}
                               {isTopMatch && (
-                                <span style={{ marginLeft: 8, fontSize: 10, background: 'var(--growth)', color: '#17140F', padding: '2px 6px', borderRadius: 4, fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600 }}>
+                                <span style={{ marginLeft: 8, fontSize: 10, background: 'var(--growth)', color: '#17140F', padding: '2px 6px', borderRadius: 4, fontFamily: "'JetBrains Mono', monospace", fontWeight: 600 }}>
                                   TOP MATCH
                                 </span>
                               )}
                               {isModelPick && !isTopMatch && (
-                                <span style={{ marginLeft: 8, fontSize: 10, background: 'var(--water)', color: '#17140F', padding: '2px 6px', borderRadius: 4, fontFamily: "'IBM Plex Mono', monospace" }}>
+                                <span style={{ marginLeft: 8, fontSize: 10, background: 'var(--water)', color: '#17140F', padding: '2px 6px', borderRadius: 4, fontFamily: "'JetBrains Mono', monospace" }}>
                                   🤖 Model Pick
                                 </span>
                               )}
                             </div>
-                            <div style={{ fontSize: 11, color: 'var(--text-dim)', fontFamily: "'IBM Plex Mono', monospace" }}>
+                            <div style={{ fontSize: 11, color: 'var(--text-dim)', fontFamily: "'JetBrains Mono', monospace" }}>
                               {m.crop.duration} day crop · {m.crop.season}
                             </div>
                           </div>
                         </div>
                         <div style={{ textAlign: 'right' }}>
-                          <div style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 700, color: m.score >= 80 ? 'var(--growth)' : m.score >= 50 ? 'var(--harvest)' : 'var(--alert)' }}>
+                          <div style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: 20, fontWeight: 700, color: m.score >= 80 ? 'var(--growth)' : m.score >= 50 ? 'var(--harvest)' : 'var(--alert)' }}>
                             {m.score}%
                           </div>
                           <div style={{ fontSize: 10, color: 'var(--text-dim)' }}>match</div>
@@ -1911,7 +1959,7 @@ export default function App() {
                                 background: topReasonTab === 'reason' ? 'var(--water)' : 'var(--surface-2)',
                                 border: '1px solid var(--water)',
                                 color: topReasonTab === 'reason' ? '#17140F' : 'var(--text)',
-                                borderRadius: 999, padding: '4px 10px', fontSize: 11, cursor: 'pointer', fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600
+                                borderRadius: 999, padding: '4px 10px', fontSize: 11, cursor: 'pointer', fontFamily: "'JetBrains Mono', monospace", fontWeight: 600
                               }}
                             >
                               💡 Reason
@@ -1923,7 +1971,7 @@ export default function App() {
                                   background: topReasonTab === 'shap' ? 'var(--water)' : 'var(--surface-2)',
                                   border: '1px solid var(--water)',
                                   color: topReasonTab === 'shap' ? '#17140F' : 'var(--text)',
-                                  borderRadius: 999, padding: '4px 10px', fontSize: 11, cursor: 'pointer', fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600
+                                  borderRadius: 999, padding: '4px 10px', fontSize: 11, cursor: 'pointer', fontFamily: "'JetBrains Mono', monospace", fontWeight: 600
                                 }}
                               >
                                 📊 SHAP Values
@@ -1931,7 +1979,7 @@ export default function App() {
                             )}
                           </>
                         )}
-                        <button onClick={() => { setCropId(m.crop.id); setAdaptiveResult(null); setMode('timeline'); }} style={{ background: 'transparent', border: '1px solid var(--growth)', color: 'var(--growth)', borderRadius: 6, padding: '4px 10px', fontSize: 11, cursor: 'pointer', marginLeft: 'auto', fontFamily: "'IBM Plex Mono', monospace" }}>
+                        <button onClick={() => { setCropId(m.crop.id); setAdaptiveResult(null); setMode('timeline'); }} style={{ background: 'transparent', border: '1px solid var(--growth)', color: 'var(--growth)', borderRadius: 6, padding: '4px 10px', fontSize: 11, cursor: 'pointer', marginLeft: 'auto', fontFamily: "'JetBrains Mono', monospace" }}>
                           Use in Plan →
                         </button>
                       </div>
@@ -1943,7 +1991,17 @@ export default function App() {
           </div>
         )}
 
+        {/* ============================================================== */}
+        {/* TAB: MARKET PRICES & FORECASTING MAP                           */}
+        {/* ============================================================== */}
+        {mode === "market" && (
+          <div style={{ width: "100%", marginTop: 8 }}>
+            <CropPriceMap initialCrop={crop?.name} />
+          </div>
+        )}
+
       </div>
+    </div>
     </div>
   );
 }
