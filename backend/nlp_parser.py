@@ -15,19 +15,20 @@ except ImportError:
 
 
 SYSTEM_PROMPT = """
-You are an expert Agricultural AI assistant. Your job is to parse a farmer's natural language update or weather report, and extract structured adjustments to soil and environmental variables.
+You are an expert Agricultural AI Agronomist and Crop Copilot.
+Your job is to analyze a farmer's real-time field report, voice note, or weather observation in the context of their specific crop, current growth stage, and current timeline, and provide actionable farming suggestions as well as structured micro-climate shifts.
 
 Inputs:
 - Current baseline conditions: N, P, K, pH, Temperature (deg C), Humidity (%), Rainfall (mm)
-- Crop name and current growth stage (e.g. Sowing, Vegetative, Flowering, Maturity)
-- Days since sowing
-- Farmer's text update (e.g., "Tmr news said heavy rain 40mm", "Heatwave 36C expected for next 4 days", "Applied 20kg nitrogen fertilizer", "Soil is drying out fast")
+- Crop name, Season, and full timeline stages
+- Current active growth stage and exact days since sowing
+- Farmer's observation / update
 
 Output MUST be a valid JSON object strictly matching this schema:
 {
   "affected_feature": "rainfall" | "temperature" | "humidity" | "soil_moisture" | "unknown",
   "adjustment_direction": "increase" | "decrease" | "unknown",
-  "adjustment_magnitude": float (e.g. 0.3 for 30% increase or absolute shift fraction),
+  "adjustment_magnitude": float (e.g. 0.3 for 30% shift),
   "tweaked_N": float,
   "tweaked_P": float,
   "tweaked_K": float,
@@ -36,8 +37,11 @@ Output MUST be a valid JSON object strictly matching this schema:
   "tweaked_humidity": float,
   "tweaked_rainfall": float,
   "weather_event": "rain" | "heatwave" | "cold_wave" | "dry_spell" | "fertilizer_applied" | "pest_disease" | "normal",
-  "farmer_explanation": "Clear, concise 1-2 sentence explanation of what changed and its farming impact.",
-  "actionable_advisory": "Actionable agronomic advice (e.g. pause irrigation, clear drainage channels, apply foliar spray)."
+  "farmer_explanation": "Clear, concise 1-2 sentence explanation of the field shift.",
+  "actionable_advisory": "Clear agronomic guidance.",
+  "llm_stage_suggestion": "Direct, personalized recommendation tailored to what the farmer should do during their current growth stage based on their feedback.",
+  "suggested_actions": ["Specific step 1", "Specific step 2", "Specific step 3"],
+  "spoken_farmer_script": "A warm, encouraging, conversational voice script to be read out loud to the farmer. Start with a friendly greeting like 'Hello farmer friend!' or 'Namaste!'. Keep it clear, spoken, empathetic, and actionable."
 }
 Do NOT return markdown fences (```json ... ```), return ONLY the raw JSON string.
 """
@@ -62,40 +66,45 @@ def parse_feedback_with_gemini(
     crop_name: str,
     stage_name: str,
     days_since_sowing: int,
+    stages: Optional[list] = None,
     api_key: Optional[str] = None
 ) -> Dict[str, Any]:
     """
-    Parses feedback using Gemini. If API key is missing or call fails, falls back to heuristic parser.
+    Parses feedback using Gemini with full timeline & stage context. If call fails, falls back to heuristic parser.
     """
     _load_env_if_needed()
     key = api_key or os.environ.get("GEMINI_API_KEY")
     if not key or not GENAI_AVAILABLE:
-        return parse_feedback_heuristic(feedback_text, baseline, crop_name, stage_name, days_since_sowing)
+        return parse_feedback_heuristic(feedback_text, baseline, crop_name, stage_name, days_since_sowing, stages)
 
     try:
         genai.configure(api_key=key)
         
-        # Try latest active models
         candidate_models = ["gemini-flash-latest", "gemini-3.7-flash", "gemini-3.5-flash", "gemini-flash-lite-latest"]
         response = None
         
+        stages_str = ", ".join([f"{s.get('name', 'Stage')} ({s.get('days', 30)}d)" for s in stages]) if stages else "Standard growth cycle"
+
         user_prompt = f"""
 Current Baseline Soil & Weather:
-- Nitrogen (N): {baseline.get('n', 80)}
-- Phosphorus (P): {baseline.get('p', 50)}
-- Potassium (K): {baseline.get('k', 40)}
-- pH: {baseline.get('ph', 6.5)}
-- Temperature: {baseline.get('temperature', 26.0)} deg C
+- Nitrogen (N): {baseline.get('n', 80)} kg/ha
+- Phosphorus (P): {baseline.get('p', 50)} kg/ha
+- Potassium (K): {baseline.get('k', 40)} kg/ha
+- Soil pH: {baseline.get('ph', 6.5)}
+- Temperature: {baseline.get('temperature', 26.0)} °C
 - Humidity: {baseline.get('humidity', 65.0)}%
 - Rainfall: {baseline.get('rainfall', 120.0)} mm
 
-Crop Details:
+Crop & Timeline Context:
 - Crop: {crop_name}
-- Current Stage: {stage_name}
-- Days Since Sowing: {days_since_sowing}
+- Full Timeline Stages: {stages_str}
+- Current Active Stage: {stage_name}
+- Days Since Sowing: Day {days_since_sowing}
 
-Farmer's Message / Update:
+Farmer's Observation / Report:
 "{feedback_text}"
+
+Please provide comprehensive stage-specific advice, structured shift parameters, and a warm spoken farmer script.
 """
         for model_name in candidate_models:
             try:
@@ -118,10 +127,20 @@ Farmer's Message / Update:
             text = re.sub(r"^```(?:json)?\n|\n```$", "", text, flags=re.MULTILINE)
         
         parsed = json.loads(text)
+        if "suggested_actions" not in parsed or not isinstance(parsed["suggested_actions"], list):
+            parsed["suggested_actions"] = [
+                f"Adjust active watering schedule for {stage_name} stage",
+                "Monitor soil moisture at 15cm depth",
+                "Follow updated crop calendar"
+            ]
+        if "llm_stage_suggestion" not in parsed:
+            parsed["llm_stage_suggestion"] = parsed.get("actionable_advisory", f"Recommendation for {crop_name} during {stage_name} stage.")
+        if "spoken_farmer_script" not in parsed:
+            parsed["spoken_farmer_script"] = f"Hello farmer friend! For your {crop_name} in the {stage_name} stage, {parsed.get('llm_stage_suggestion', parsed.get('farmer_explanation'))} Have a productive farming day!"
         return parsed
     except Exception as e:
         print(f"Gemini API call failed ({e}), falling back to heuristic parser.")
-        return parse_feedback_heuristic(feedback_text, baseline, crop_name, stage_name, days_since_sowing)
+        return parse_feedback_heuristic(feedback_text, baseline, crop_name, stage_name, days_since_sowing, stages)
 
 
 def parse_feedback_heuristic(
@@ -129,7 +148,8 @@ def parse_feedback_heuristic(
     baseline: Dict[str, float],
     crop_name: str,
     stage_name: str,
-    days_since_sowing: int
+    days_since_sowing: int,
+    stages: Optional[list] = None
 ) -> Dict[str, Any]:
     """
     Rule-based NLP parser that handles common farmer reports reliably without external API.
@@ -150,6 +170,14 @@ def parse_feedback_heuristic(
     event = "normal"
     explanation = f"Adaptive schedule updated for {crop_name} based on reported field conditions."
     advisory = "Monitor soil moisture regularly and follow updated irrigation timeline."
+    suggestion = f"For your {crop_name} in the {stage_name} stage (Day {days_since_sowing}), maintain recommended soil moisture and check for timely nutrient uptake."
+    actions = [
+        f"Continue tracking {stage_name} stage growth parameters",
+        "Inspect soil moisture at root zone before next watering",
+        "Maintain clean field borders"
+    ]
+
+    spoken_script = f"Hello farmer friend! For your {crop_name} in the {stage_name} stage today, your field conditions are steady. Keep monitoring moisture and have a great farming day."
 
     # 1. Rain / Storm / Waterlogging
     if any(w in text_lower for w in ["rain", "raining", "storm", "downpour", "flood", "wet", "waterlog", "shower", "cloudburst"]):
@@ -157,7 +185,6 @@ def parse_feedback_heuristic(
         direction = "increase"
         event = "rain"
         rain_add = 50.0
-        # Check if numbers mentioned (e.g., "30mm", "40 mm")
         num_match = re.search(r"(\d+(?:\.\d+)?)\s*(?:mm|cm|inch)", text_lower)
         if num_match:
             rain_add = float(num_match.group(1)) * (10 if "cm" in text_lower else (25.4 if "inch" in text_lower else 1))
@@ -166,8 +193,16 @@ def parse_feedback_heuristic(
         humid = min(100.0, humid + 15.0)
         temp = max(15.0, temp - 2.5)
         magnitude = round(rain_add / max(rain, 1), 2)
-        explanation = f"Heavy rainfall ({rain_add:.1f}mm) reported. Soil moisture increased and evaporation decreased."
-        advisory = "Pause active irrigation immediately. Ensure field drainage channels are clear to prevent waterlogging."
+        explanation = f"Heavy rainfall ({rain_add:.1f}mm) registered. Soil moisture is saturated and evaporation has decreased."
+        advisory = "Pause active irrigation immediately. Ensure field drainage channels are clear to prevent waterlogging and root suffocation."
+        suggestion = f"Since your {crop_name} is currently in the {stage_name} stage (Day {days_since_sowing}), hold off on all irrigation for at least 4-5 days. Avoid heavy fertilizer application right now to prevent nutrient leaching from soil runoff."
+        actions = [
+            f"Pause scheduled irrigation events for the active {stage_name} stage",
+            "Inspect field drainage ditches to prevent pooling around roots",
+            "Postpone nitrogen fertilizer top-dressing until topsoil dries",
+            "Check for signs of waterborne fungal pathogens after rain clears"
+        ]
+        spoken_script = f"Hello farmer friend! Heavy rain is reported in your area. For your {crop_name} in the {stage_name} stage, please pause all watering for the next 4 to 5 days and make sure your drainage channels are clear so the roots stay healthy and strong!"
 
     # 2. Heatwave / Hot / High Temp / Dry
     elif any(w in text_lower for w in ["heat", "hot", "sun", "sunny", "heatwave", "dry", "drought", "parched"]):
@@ -186,6 +221,14 @@ def parse_feedback_heuristic(
         magnitude = 0.25
         explanation = f"High temperature / heat condition detected ({temp:.1f}°C). Evapotranspiration will accelerate."
         advisory = "Increase irrigation frequency or depth during cooler early morning or evening hours to avoid thermal shock."
+        suggestion = f"High temperatures accelerate crop transpiration in the {stage_name} stage. Water during early dawn (5-8 AM) or late evening to minimize evaporation loss and preserve flower/leaf turgor."
+        actions = [
+            f"Switch {stage_name} stage watering to early morning or late evening",
+            "Apply mulch or straw cover over exposed soil to retain moisture",
+            "Shorten irrigation intervals to prevent moisture depletion beyond MAD",
+            "Monitor canopy for leaf rolling or heat stress wilt"
+        ]
+        spoken_script = f"Attention farmer friend! High heat is detected. To protect your {crop_name} during this {stage_name} stage, please water your fields early in the morning between 5 and 8 AM, or in the evening. This prevents heat shock and saves precious water!"
 
     # 3. Cold Wave / Frost / Winter Chill
     elif any(w in text_lower for w in ["cold", "frost", "chill", "winter", "cool", "low temp"]):
@@ -193,10 +236,20 @@ def parse_feedback_heuristic(
         direction = "decrease"
         event = "cold_wave"
         temp = max(10.0, temp - 5.0)
+        num_match = re.search(r"(\d+(?:\.\d+)?)\s*(?:c|deg|degree)", text_lower)
+        if num_match:
+            temp = float(num_match.group(1))
         humid = min(95.0, humid + 10.0)
         magnitude = 0.20
         explanation = f"Cold temperatures detected ({temp:.1f}°C). Crop metabolic growth rate and water consumption slow down."
         advisory = "Reduce water application to avoid cold-induced root suffocation; protect delicate blossoms if in flowering stage."
+        suggestion = f"Cold shock slows down cell division during {stage_name} stage. Reduce watering depth by 20% to keep soil temperature warmer around the root system."
+        actions = [
+            f"Reduce water depth by 20% during the cold spell for {stage_name} stage",
+            "Avoid night-time flood watering which drops soil temperatures",
+            "Apply light potassium foliar spray to boost plant frost resistance"
+        ]
+        spoken_script = f"Namaste farmer friend! Cold weather is slowing crop growth for your {crop_name}. Reduce watering depth by 20 percent and avoid night-time watering to keep the root zone warm and protected!"
 
     # 4. Fertilizer applied / Nutrients
     elif any(w in text_lower for w in ["fertilizer", "urea", "dap", "potash", "npk", "manure", "nitrogen"]):
@@ -209,6 +262,13 @@ def parse_feedback_heuristic(
         magnitude = 0.30
         explanation = "Nutrient application registered. Crop vegetative growth potential boosted."
         advisory = "Provide light irrigation (15-20mm) to dissolve nutrients into the root zone without leaching."
+        suggestion = f"Now that nutrients are applied in {stage_name} stage, provide a light irrigation (15-20mm) within 24 hours to dissolve fertilizers directly into the active root feeding zone."
+        actions = [
+            "Provide immediate light irrigation (15-20mm) to dissolve fertilizer",
+            "Ensure water does not overflow field bunds to retain nutrients",
+            "Observe leaf color and vigor improvement over next 4-6 days"
+        ]
+        spoken_script = f"Great work applying fertilizers! For your {crop_name} in the {stage_name} stage, give a light irrigation of about 15 to 20 millimeters within 24 hours so your crops absorb all those nutrients without washing them away!"
 
     # 5. Pest / Disease
     elif any(w in text_lower for w in ["pest", "disease", "worm", "fungus", "blight", "rot", "insects", "locust"]):
@@ -218,6 +278,13 @@ def parse_feedback_heuristic(
         magnitude = 0.15
         explanation = "Crop health stress / pest attack reported. Plant vegetative progression may experience mild delay."
         advisory = "Apply targeted biopesticide or recommended spray. Avoid excess moisture on canopy."
+        suggestion = f"Address pest pressure immediately during the {stage_name} stage. Avoid overhead sprinkler watering which creates moist canopy conditions favored by fungal spores."
+        actions = [
+            "Apply recommended eco-friendly biopesticide or neem oil spray",
+            "Avoid wet canopy foliage in late evening",
+            "Prune and safely discard heavily infested leaves"
+        ]
+        spoken_script = f"Take caution farmer friend! Pest or fungus symptoms were detected on your {crop_name}. Please apply recommended neem oil or organic biopesticide, and avoid leaving leaves wet in the evening to protect your crop yield!"
 
     return {
         "affected_feature": affected_feature,
@@ -232,5 +299,8 @@ def parse_feedback_heuristic(
         "tweaked_rainfall": round(rain, 2),
         "weather_event": event,
         "farmer_explanation": explanation,
-        "actionable_advisory": advisory
+        "actionable_advisory": advisory,
+        "llm_stage_suggestion": suggestion,
+        "suggested_actions": actions,
+        "spoken_farmer_script": spoken_script
     }

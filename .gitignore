@@ -17,3 +17,9 @@ env/
 node_modules/
 dist/
 .DS_Store
+
+# Media and temporary artifacts
+*.mp4
+debug_*.png
+test_debug_crash.py
+test_e2e_playwright.py

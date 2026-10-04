@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 
 from nlp_parser import parse_feedback_with_gemini
 from engine import TimelineEngine
+from price_predictor import CropPricePredictor
 
 app = FastAPI(
     title="Smart Crop Adaptive Timeline API",
@@ -27,6 +28,13 @@ app.add_middleware(
 )
 
 engine = TimelineEngine()
+
+price_predictor = None
+try:
+    price_predictor = CropPricePredictor()
+except Exception as e:
+    print(f"Warning: Failed to initialize CropPricePredictor: {e}")
+
 
 # -------------------------------------------------------------
 # Request & Response Models
@@ -65,6 +73,9 @@ class AdaptiveFeedbackResponse(BaseModel):
     timeline_reschedule: Dict[str, Any]
     farmer_explanation: str
     actionable_advisory: str
+    llm_stage_suggestion: Optional[str] = None
+    suggested_actions: Optional[List[str]] = None
+    spoken_farmer_script: Optional[str] = None
 
 
 class CropRecommendationRequest(BaseModel):
@@ -109,6 +120,7 @@ def adaptive_reschedule(req: AdaptiveFeedbackRequest, x_gemini_key: Optional[str
                     break
 
         baseline_dict = req.baseline.model_dump()
+        stages_dicts = [s.model_dump() for s in req.stages] if req.stages else []
 
         # 2. Extract structured parameters via Gemini / Heuristic Parser
         nlp_res = parse_feedback_with_gemini(
@@ -117,6 +129,7 @@ def adaptive_reschedule(req: AdaptiveFeedbackRequest, x_gemini_key: Optional[str
             crop_name=req.crop_name,
             stage_name=active_stage_name,
             days_since_sowing=req.days_since_sowing,
+            stages=stages_dicts,
             api_key=api_key
         )
 
@@ -134,12 +147,13 @@ def adaptive_reschedule(req: AdaptiveFeedbackRequest, x_gemini_key: Optional[str
         )
 
         # 4. Recalibrate growth stages & dates
-        stages_dicts = [s.model_dump() for s in req.stages] if req.stages else [
-            {"name": "Germination", "days": 15, "kc": 0.35},
-            {"name": "Vegetative", "days": 35, "kc": 0.75},
-            {"name": "Flowering", "days": 40, "kc": 1.15},
-            {"name": "Maturity", "days": 30, "kc": 0.4}
-        ]
+        if not stages_dicts:
+            stages_dicts = [
+                {"name": "Germination", "days": 15, "kc": 0.35},
+                {"name": "Vegetative", "days": 35, "kc": 0.75},
+                {"name": "Flowering", "days": 40, "kc": 1.15},
+                {"name": "Maturity", "days": 30, "kc": 0.4}
+            ]
 
         reschedule_res = engine.reschedule_stages(
             stages=stages_dicts,
@@ -155,7 +169,10 @@ def adaptive_reschedule(req: AdaptiveFeedbackRequest, x_gemini_key: Optional[str
             ml_prediction=ml_res,
             timeline_reschedule=reschedule_res,
             farmer_explanation=nlp_res.get("farmer_explanation", "Schedule dynamically adjusted."),
-            actionable_advisory=nlp_res.get("actionable_advisory", "Follow updated timeline.")
+            actionable_advisory=nlp_res.get("actionable_advisory", "Follow updated timeline."),
+            llm_stage_suggestion=nlp_res.get("llm_stage_suggestion"),
+            suggested_actions=nlp_res.get("suggested_actions"),
+            spoken_farmer_script=nlp_res.get("spoken_farmer_script")
         )
 
     except Exception as e:
@@ -181,6 +198,37 @@ def recommend_crop(req: CropRecommendationRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Crop recommendation failed: {str(e)}")
 
+
+@app.get("/api/crops")
+def get_crops():
+    if not price_predictor:
+        raise HTTPException(status_code=503, detail="Predictor not initialized")
+    return {"crops": price_predictor.get_all_crops()}
+
+@app.get("/api/markets")
+def get_markets(crop: str, lat: float, lon: float, radius: float = 100.0):
+    if not price_predictor:
+        raise HTTPException(status_code=503, detail="Predictor not initialized")
+    markets = price_predictor.get_markets_for_crop(crop, lat, lon, radius)
+    return {
+        "crop": crop,
+        "markets": markets
+    }
+
+@app.get("/api/predict")
+def predict_prices(crop: str, market: str, months: int = 3):
+    if not price_predictor:
+        raise HTTPException(status_code=503, detail="Predictor not initialized")
+    res = price_predictor.predict_prices(crop, market, months)
+    if not res:
+        raise HTTPException(status_code=404, detail="Crop or Market not found")
+    return res
+
+@app.get("/api/crop-categories")
+def get_crop_categories():
+    if not price_predictor:
+        raise HTTPException(status_code=503, detail="Predictor not initialized")
+    return {"categories": price_predictor.get_crop_categories()}
 
 if __name__ == "__main__":
     import uvicorn

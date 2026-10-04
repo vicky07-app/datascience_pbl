@@ -136,42 +136,65 @@ class TimelineEngine:
         weather_event: str = "normal"
     ) -> Dict[str, Any]:
         """
-        Recalibrates crop growth stages according to shift_days.
+        Recalibrates crop growth stages according to shift_days and weather events.
         """
         total_orig_days = sum(s.get('days', 30) for s in stages)
         adapted_stages = []
         
+        # 1. Accurately find current stage index based on days elapsed
         accumulated_days = 0
         current_stage_idx = 0
-        
         for idx, stage in enumerate(stages):
             accumulated_days += stage.get('days', 30)
-            if days_since_sowing <= accumulated_days and current_stage_idx == 0:
+            if days_since_sowing <= accumulated_days:
                 current_stage_idx = idx
+                break
+        else:
+            current_stage_idx = len(stages) - 1
 
-        # Distribute shift across active and remaining stages
-        remaining_stages_count = len(stages) - current_stage_idx
-        if remaining_stages_count <= 0:
-            remaining_stages_count = 1
+        # 2. Determine effective shift in integer days (at least +-1 to +-4 days on weather events)
+        effective_shift = int(round(shift_days))
+        if effective_shift == 0:
+            if weather_event in ["heatwave", "dry_spell"]:
+                effective_shift = -3
+            elif weather_event in ["cold_wave", "frost"]:
+                effective_shift = 4
+            elif weather_event in ["rain", "storm"]:
+                effective_shift = 2
+            elif weather_event in ["fertilizer_applied"]:
+                effective_shift = -2
+            elif weather_event in ["pest_disease"]:
+                effective_shift = 3
+            elif shift_days != 0:
+                effective_shift = 1 if shift_days > 0 else -1
 
-        stage_shift_alloc = shift_days / remaining_stages_count
+        # 3. Distribute shift: active stage absorbs primary impact, downstream stages absorb remaining
+        remaining_count = len(stages) - current_stage_idx
+        if remaining_count <= 1:
+            active_shift = effective_shift
+            downstream_per_stage = 0
+        else:
+            active_shift = int(round(effective_shift * 0.65))
+            if active_shift == 0 and effective_shift != 0:
+                active_shift = 1 if effective_shift > 0 else -1
+            downstream_shift = effective_shift - active_shift
+            downstream_per_stage = downstream_shift // (remaining_count - 1)
 
         for idx, stage in enumerate(stages):
             orig_days = stage.get('days', 30)
             if idx < current_stage_idx:
-                # Past stages are completed, no duration change
                 new_days = orig_days
-                status = "completed"
                 delta_days = 0
+                status = "completed"
             elif idx == current_stage_idx:
-                # Active stage absorbs primary immediate impact
-                delta_days = round(stage_shift_alloc, 1)
-                new_days = max(5, int(round(orig_days + delta_days)))
+                delta_days = active_shift
+                new_days = max(5, orig_days + delta_days)
+                delta_days = new_days - orig_days
                 status = "active"
             else:
-                # Future stages absorb downstream delay/acceleration
-                delta_days = round(stage_shift_alloc, 1)
-                new_days = max(5, int(round(orig_days + delta_days)))
+                delta_days = downstream_per_stage
+                new_days = max(5, orig_days + delta_days)
+                delta_days = new_days - orig_days
                 status = "upcoming"
 
             adapted_stages.append({
@@ -179,7 +202,7 @@ class TimelineEngine:
                 "kc": stage.get("kc"),
                 "original_days": orig_days,
                 "adapted_days": new_days,
-                "delta_days": round(new_days - orig_days, 1),
+                "delta_days": delta_days,
                 "status": status
             })
 
@@ -188,7 +211,7 @@ class TimelineEngine:
         return {
             "original_total_days": total_orig_days,
             "adapted_total_days": new_total_days,
-            "net_shift_days": round(new_total_days - total_orig_days, 1),
+            "net_shift_days": new_total_days - total_orig_days,
             "current_stage_index": current_stage_idx,
             "adapted_stages": adapted_stages
         }
@@ -214,7 +237,7 @@ class TimelineEngine:
         
         # Probabilities
         probs = self.crop_model.predict_proba(scaled_input)[0]
-        top_indices = np.argsort(probs)[::-1][:3]
+        top_indices = np.argsort(probs)[::-1][:6]
         
         if self.crop_encoder:
             pred_crop = self.crop_encoder.inverse_transform([pred_encoded])[0]
